@@ -53,8 +53,9 @@ namespace TootTallyAutoToot
             ConfigFile config = new ConfigFile(configPath + CONFIG_NAME, true) { SaveOnConfigSet = true };
 
             ToggleKey = config.Bind("General", nameof(ToggleKey), KeyCode.F1, "Enable / Disable AutoToot.");
-            EasingType = config.Bind("General", nameof(EasingType), EasingHelper.EasingType.OutQuad, "Easing function for transitions. Recommended to use EaseOut only smoothing functions for better results.");
-            SyncTootWithSong = config.Bind("General", nameof(SyncTootWithSong), false, "Sync toot with the song instead of notes.");
+            EasingType = config.Bind("General", nameof(EasingType), EasingHelper.EasingType.InOutQuad, "Easing function for transitions.\nRecommended to use EaseOut only smoothing functions for better results.");
+            TimingAdjust = config.Bind("General", nameof(TimingAdjust), 15f, "How early will it snap to notes and how late will it wait before moving.\n Defaulted at 5ms.");
+            SyncTootWithSong = config.Bind("General", nameof(SyncTootWithSong), false, "Sync toot with the song instead of notes.\nIf trombone WAPS too much, lower Timing Adjust value.");
             PerfectPlay = config.Bind("General", nameof(PerfectPlay), false, "Forces perfect score on every notes.");
             settingPage = TootTallySettingsManager.AddNewPage("TTAutoToot", "TTAutoToot", 40f, new Color(0,0,0,0));
 
@@ -62,6 +63,7 @@ namespace TootTallyAutoToot
             settingPage.AddDropdown("Toggle Key", ToggleKey);
             settingPage.AddLabel("Easing Type");
             settingPage.AddDropdown("Easing Type", EasingType);
+            settingPage.AddSlider("Timing Adjust", 1f, 100f, TimingAdjust, true);
             settingPage.AddToggle("Sync toot with song", SyncTootWithSong);
             settingPage.AddToggle("Perfect Play", PerfectPlay);
 
@@ -78,6 +80,7 @@ namespace TootTallyAutoToot
 
         public ConfigEntry<KeyCode> ToggleKey { get; set; }
         public ConfigEntry<EasingType> EasingType { get; set; }
+        public ConfigEntry<float> TimingAdjust { get; set; }
         public ConfigEntry<bool> SyncTootWithSong { get; set; }
         public ConfigEntry<bool> PerfectPlay { get; set; }
     }

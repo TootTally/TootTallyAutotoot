@@ -23,6 +23,7 @@ namespace TootTallyAutoToot
         private bool _isSlider;
         private int _noteIndex;
         private float _timingAdjustValue;
+        private bool _releasedBetweenNotes;
 
         public bool isEnabled;
         public bool isTooting;
@@ -53,8 +54,7 @@ namespace TootTallyAutoToot
             _lastTimeSample = 0f;
             _pointerPosition = _pointerRect.anchoredPosition;
             _currentEasing = EasingHelper.GetCurrentEasing(Plugin.Instance.EasingType.Value);
-            //_timingAdjustValue = B2s(.05f, _gameController.tempo);
-            _timingAdjustValue = .02f;
+            _timingAdjustValue = Plugin.Instance.TimingAdjust.Value / 1000f * TootTallyGlobalVariables.gameSpeedMultiplier;
         }
 
         public void Update()
@@ -75,6 +75,8 @@ namespace TootTallyAutoToot
                 _gameController.breathcounter = 0f;
 
             isTooting = ShouldToot();
+            if (!isTooting)
+                _releasedBetweenNotes = true;
             _pointerPosition.y = GetPositionY();
             _pointerRect.anchoredPosition = _pointerPosition;
         }
@@ -82,12 +84,13 @@ namespace TootTallyAutoToot
         private void UpdateTrackData()
         {
             _trackTime += Time.deltaTime * TootTallyGlobalVariables.gameSpeedMultiplier;
-            _trackTime += (_lastTrackTime - _trackTime) / 90f;
             if (_lastTimeSample != _gameController.musictrack.timeSamples)
             {
                 _lastTrackTime = _gameController.musictrack.time - _gameController.noteoffset - _gameController.latency_offset;
                 _lastTimeSample = _gameController.musictrack.timeSamples;
             }
+            //slight correction
+            _trackTime += (_lastTrackTime - _trackTime) / 60f;
 
             if (_trackTime >= _currentNoteEndTime)
             {
@@ -104,6 +107,7 @@ namespace TootTallyAutoToot
                     _currentNoteEndTime = _currentNoteStartTime + B2s(_gameController.leveldata[_noteIndex + 1][1], _gameController.tempo);
                     _currentNoteStartY = _gameController.leveldata[_noteIndex + 1][2];
                     _currentNoteEndY = _gameController.leveldata[_noteIndex + 1][4];
+                    _releasedBetweenNotes = !isTooting;
                 }
                 else
                     _currentNoteStartTime = float.MaxValue;
@@ -115,21 +119,23 @@ namespace TootTallyAutoToot
         {
             isEnabled = !isEnabled;
             _gameController.controllermode = isEnabled;
+            _lastNoteEndTime = _trackTime;
+            _lastNoteEndY = _pointerRect.anchoredPosition.y;
             Plugin.LogInfo($"AutoToot {(isEnabled ? "Enabled" : "Disabled")}.");
         }
 
         //if you're not tooting, should you start tooting? else should you stop
-        private bool ShouldToot() => _trackTime >= _currentNoteStartTime + (Plugin.Instance.SyncTootWithSong.Value ? _gameController.latency_offset : 0) - _timingAdjustValue
-                                     || _trackTime <= _lastNoteEndTime + (Plugin.Instance.SyncTootWithSong.Value ? _gameController.latency_offset : 0) + _timingAdjustValue
+        private bool ShouldToot() => (_trackTime >= _currentNoteStartTime - (Plugin.Instance.SyncTootWithSong.Value ? _gameController.latency_offset : _timingAdjustValue) && _releasedBetweenNotes)
+                                     || _trackTime <= _lastNoteEndTime + _timingAdjustValue
                                      || _isSlider;
 
         private float GetPositionY()
         {
             float by;
-            if ((_trackTime >= _currentNoteStartTime && _trackTime <= _currentNoteEndTime) || _isSlider)
+            if (_trackTime >= _currentNoteStartTime && _trackTime <= _currentNoteEndTime + _timingAdjustValue)
             {
-                by = Mathf.Clamp(1f - ((_currentNoteEndTime - _trackTime) / (_currentNoteEndTime - _currentNoteStartTime)), 0, 1);
-                return _currentNoteStartY + _gameController.easeInOutVal(Mathf.Abs(by), 0f, _gameController.currentnotepshift, 1f);
+                by = Mathf.Clamp(1f - ((_currentNoteEndTime - (_trackTime + (0.005555f * TootTallyGlobalVariables.gameSpeedMultiplier))) / (_currentNoteEndTime - _currentNoteStartTime)) , 0, 1);
+                return _currentNoteStartY + _gameController.easeInOutVal(Mathf.Abs(by), 0f, _currentNoteEndY - _currentNoteStartY, 1f);
             }
             var adjustedNoteStart = _currentNoteStartTime - _timingAdjustValue;
             var adjustedNoteEnd = _lastNoteEndTime + _timingAdjustValue;
