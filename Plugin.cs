@@ -6,6 +6,7 @@ using System.IO;
 using TootTallyCore.Utils.TootTallyModules;
 using TootTallySettings;
 using UnityEngine;
+using static TootTallyAutoToot.EasingHelper;
 
 namespace TootTallyAutoToot
 {
@@ -51,9 +52,17 @@ namespace TootTallyAutoToot
             string configPath = Path.Combine(Paths.BepInExRootPath, "config/");
             ConfigFile config = new ConfigFile(configPath + CONFIG_NAME, true) { SaveOnConfigSet = true };
 
+            ToggleKey = config.Bind("General", nameof(ToggleKey), KeyCode.F1, "Enable / Disable AutoToot.");
+            EasingType = config.Bind("General", nameof(EasingType), EasingHelper.EasingType.OutQuad, "Easing function for transitions. Recommended to use EaseOut only smoothing functions for better results.");
+            SyncTootWithSong = config.Bind("General", nameof(SyncTootWithSong), false, "Sync toot with the song instead of notes.");
             PerfectPlay = config.Bind("General", nameof(PerfectPlay), false, "Forces perfect score on every notes.");
-
             settingPage = TootTallySettingsManager.AddNewPage("TTAutoToot", "TTAutoToot", 40f, new Color(0,0,0,0));
+
+            settingPage.AddLabel("Toggle Key");
+            settingPage.AddDropdown("Toggle Key", ToggleKey);
+            settingPage.AddLabel("Easing Type");
+            settingPage.AddDropdown("Easing Type", EasingType);
+            settingPage.AddToggle("Sync toot with song", SyncTootWithSong);
             settingPage.AddToggle("Perfect Play", PerfectPlay);
 
             _harmony.PatchAll(typeof(AutoTootManager));
@@ -67,6 +76,9 @@ namespace TootTallyAutoToot
             LogInfo($"Module unloaded!");
         }
 
-        ConfigEntry<bool> PerfectPlay { get; set; }
+        public ConfigEntry<KeyCode> ToggleKey { get; set; }
+        public ConfigEntry<EasingType> EasingType { get; set; }
+        public ConfigEntry<bool> SyncTootWithSong { get; set; }
+        public ConfigEntry<bool> PerfectPlay { get; set; }
     }
 }
