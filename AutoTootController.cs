@@ -146,7 +146,8 @@ namespace TootTallyAutoToot
         private bool ShouldToot() => ((_trackTime >= Mathf.Max(_currentNoteStartTime - (Plugin.Instance.SyncTootWithSong.Value ? _gameController.latency_offset : _timingAdjustValue), _lastNoteEndTime) && _releasedBetweenNotes)
                                      || _trackTime <= _lastNoteEndTime
                                      || _isSlider)
-                                     && !_shouldBreath;
+                                     && !_shouldBreath
+                                     && _trackTime > .01f;
 
 
         private float GetPositionY()

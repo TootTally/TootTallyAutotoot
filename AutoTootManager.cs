@@ -28,6 +28,7 @@ namespace TootTallyAutoToot
                 _eventManagers = null;
                 _bgPuppetController = null;
             }
+            _lastIsTooting = false;
             _screenDim = new Vector2(Screen.width, Screen.height);
             TootTallyGlobalVariables.usedAutotoot = false;
         }
@@ -63,9 +64,10 @@ namespace TootTallyAutoToot
         [HarmonyPostfix]
         public static void OnGameControllerUpdateSetPointerPosition(GameController __instance)
         {
-            if (_controller.isEnabled && _bgPuppetController != null)
+            if (_controller.isEnabled)
             {
-                _bgPuppetController.DoPuppetControl(-_controller.pointerPosition.y / 225, __instance.vibratoamt);
+                __instance.puppet_humanc.doPuppetControl(-_controller.pointerPosition.y / 225);
+                _bgPuppetController?.DoPuppetControl(-_controller.pointerPosition.y / 225, __instance.vibratoamt);
             }
         }
 
@@ -85,17 +87,22 @@ namespace TootTallyAutoToot
         {
             if (_controller.isEnabled && _eventManagers != null)
                 if (_controller.isTooting)
+                {
+
                     if (_lastIsTooting == false)
                     {
                         _lastIsTooting = true;
                         foreach (var manager in _eventManagers) manager.PlayerTootInputStart?.Invoke();
                     }
-                    else
+                }
+                else
+                {
                     if (_lastIsTooting == true)
                     {
                         _lastIsTooting = false;
                         foreach (var manager in _eventManagers) manager.PlayerTootInputEnd?.Invoke();
                     }
+                }
         }
 
         [HarmonyPatch(typeof(TromboneEventManager), nameof(TromboneEventManager.Update))]
