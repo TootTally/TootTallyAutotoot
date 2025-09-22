@@ -14,7 +14,6 @@ namespace TootTallyAutoToot
         private GameController _gameController;
         private GameObject _pointer;
         private RectTransform _pointerRect;
-        private Vector2 _pointerPosition;
 
         private float _lastTimeSample;
         private float _trackTime, _lastTrackTime, _estimatedTrackTime;
@@ -29,6 +28,7 @@ namespace TootTallyAutoToot
 
         public bool isEnabled;
         public bool isTooting;
+        public Vector2 pointerPosition;
 
         private static Func<float, float> _currentEasing;
 
@@ -57,7 +57,7 @@ namespace TootTallyAutoToot
             _lastNoteStartTime = -999;
             _lastTrackTime = _trackTime = 0f;
             _lastTimeSample = 0f;
-            _pointerPosition = _pointerRect.anchoredPosition;
+            pointerPosition = _pointerRect.anchoredPosition;
             _currentEasing = EasingHelper.GetCurrentEasing(Plugin.Instance.EasingType.Value);
             _timingAdjustValue = Plugin.Instance.TimingAdjust.Value / 1000f * TootTallyGlobalVariables.gameSpeedMultiplier;
         }
@@ -86,8 +86,8 @@ namespace TootTallyAutoToot
                 isTooting = ShouldToot();
             if (!isTooting)
                 _releasedBetweenNotes = true;
-            _pointerPosition.y = GetPositionY();
-            _pointerRect.anchoredPosition = _pointerPosition;
+            pointerPosition.y = GetPositionY();
+            _pointerRect.anchoredPosition = pointerPosition;
         }
 
         private void UpdateTrackData()
@@ -107,7 +107,7 @@ namespace TootTallyAutoToot
                 _noteIndex++;
                 if (_noteIndex + 1 < _gameController.leveldata.Count)
                 {
-                    _lastNoteStartTime = _currentNoteStartTime - _timingAdjustValue;
+                    _lastNoteStartTime = _currentNoteStartTime;
                     _lastNoteEndTime = _currentNoteEndTime + _timingAdjustValue;
                     _lastNoteStartY = _currentNoteStartY;
                     _lastNoteEndY = _currentNoteEndY;
@@ -117,6 +117,8 @@ namespace TootTallyAutoToot
                     _currentNoteEndTime = _currentNoteStartTime + B2s(_gameController.leveldata[_noteIndex + 1][1], _gameController.tempo);
                     _currentNoteStartY = _gameController.leveldata[_noteIndex + 1][2];
                     _currentNoteEndY = _gameController.leveldata[_noteIndex + 1][4];
+
+                    _lastNoteEndTime = Mathf.Min(_lastNoteEndTime, _currentNoteStartTime - .01f);
 
                     _releasedBetweenNotes = !isTooting;
                 }
@@ -128,7 +130,7 @@ namespace TootTallyAutoToot
 
             }
 
-            _isNoteActive = _trackTime >= _currentNoteStartTime - dt && _trackTime < _currentNoteEndTime + dt;
+            _isNoteActive = _trackTime >= _currentNoteStartTime - dt * 5f && _trackTime < _currentNoteEndTime + dt * 5f;
         }
 
         public void ToggleEnable()
@@ -141,8 +143,8 @@ namespace TootTallyAutoToot
         }
 
         //if you're not tooting, should you start tooting? else should you stop
-        private bool ShouldToot() => (((_trackTime >= _currentNoteStartTime - (Plugin.Instance.SyncTootWithSong.Value ? _gameController.latency_offset : _timingAdjustValue)
-                                     || _trackTime <= _lastNoteEndTime) && _releasedBetweenNotes)
+        private bool ShouldToot() => ((_trackTime >= Mathf.Max(_currentNoteStartTime - (Plugin.Instance.SyncTootWithSong.Value ? _gameController.latency_offset : _timingAdjustValue), _lastNoteEndTime) && _releasedBetweenNotes)
+                                     || _trackTime <= _lastNoteEndTime
                                      || _isSlider)
                                      && !_shouldBreath;
 
@@ -159,7 +161,6 @@ namespace TootTallyAutoToot
             by = Mathf.Clamp(1f - ((adjustedNoteStart - _trackTime) / (adjustedNoteStart - _lastNoteEndTime)), 0, 1);
             return Mathf.Lerp(_lastNoteEndY, _currentNoteStartY, _currentEasing(by));
         }
-
 
         public static float B2s(float time, float bpm) => time / bpm * 60f;
 
