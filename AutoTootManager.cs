@@ -28,10 +28,15 @@ namespace TootTallyAutoToot
             if (Plugin.Instance.PerfectPlay.Value && _controller.isEnabled)
             {
                 __instance.notescoreaverage = 100f;
+                __instance.notescoretotal = 100f;
                 __instance.released_button_between_notes = true;
+                __instance.released_during_timing_window = true;
+                __instance.force_no_gap_gameobject_to_appear = false;
+                __instance.notescoresamples = 1f;
             }
         }
 
+        //Shouldn't need this anymore lol
         [HarmonyPatch(typeof(GameController), nameof(GameController.doScoreText))]
         [HarmonyPrefix]
         public static void OnGameControllerDoScoreTextSetPerfectPlay(ref int whichtext, ref float notescore)
