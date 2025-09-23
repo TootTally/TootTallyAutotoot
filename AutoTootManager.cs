@@ -123,5 +123,21 @@ namespace TootTallyAutoToot
             pointerPos.x = pointerPos.x / _screenDim.x;
             return pointerPos;
         }
+
+        [HarmonyPatch(typeof(PointSceneController), nameof(PointSceneController.updateSave))]
+        [HarmonyPrefix]
+        public static bool AvoidSaveChange() => !TootTallyGlobalVariables.usedAutotoot;
+
+        [HarmonyPatch(typeof(PointSceneController), nameof(PointSceneController.checkScoreCheevos))]
+        [HarmonyPrefix]
+        public static bool AvoidAchievementCheck() => !TootTallyGlobalVariables.usedAutotoot;
+
+        [HarmonyPatch(typeof(PointSceneController), nameof(PointSceneController.doCoins))]
+        [HarmonyPostfix]
+        public static void ReplayIndicator(PointSceneController __instance)
+        {
+            if (!TootTallyGlobalVariables.usedAutotoot) return;
+            __instance.tootstext.text = "AutoToot Done";
+        }
     }
 }
