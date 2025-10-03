@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TMPro;
+using TootTallyCore.Graphics;
 using TootTallyCore.Utils.Helpers;
 using TootTallyCore.Utils.TootTallyGlobals;
 using UnityEngine;
@@ -13,6 +16,7 @@ namespace TootTallyAutoToot
     {
         private GameController _gameController;
         private GameObject _pointer;
+        private TMP_Text _autoTootText;
         private RectTransform _pointerRect;
 
         private float _lastTimeSample;
@@ -21,7 +25,7 @@ namespace TootTallyAutoToot
         private float _lastNoteStartY, _lastNoteEndY, _currentNoteStartY, _currentNoteEndY;
         private bool _isSlider;
         private int _noteIndex;
-        private float _timingAdjustValue;
+        private float _earlyTimingAdjustValue, _lateTimingAdjustValue;
         private bool _releasedBetweenNotes;
         private bool _shouldBreath;
         private bool _isNoteActive;
@@ -59,7 +63,16 @@ namespace TootTallyAutoToot
             _lastTimeSample = 0f;
             pointerPosition = _pointerRect.anchoredPosition;
             _currentEasing = EasingHelper.GetCurrentEasing(Plugin.Instance.EasingType.Value);
-            _timingAdjustValue = Plugin.Instance.TimingAdjust.Value / 1000f * TootTallyGlobalVariables.gameSpeedMultiplier;
+            _earlyTimingAdjustValue = Plugin.Instance.EarlyTimingAdjust.Value / 1000f * TootTallyGlobalVariables.gameSpeedMultiplier;
+            _lateTimingAdjustValue = Plugin.Instance.LateTimingAdjust.Value / 1000f * TootTallyGlobalVariables.gameSpeedMultiplier;
+            _autoTootText = GameObjectFactory.CreateSingleText(_gameController.ui_score_shadow.transform.parent.parent, "AutoTootText", "AutoToot Enabled", GameObjectFactory.TextFont.Multicolore);
+            _autoTootText.rectTransform.anchoredPosition = new Vector2(0, Plugin.Instance.DistanceFromBottom.Value);
+            _autoTootText.rectTransform.anchorMax = _autoTootText.rectTransform.anchorMin = new Vector2(.5f, 0);
+            _autoTootText.rectTransform.pivot = new Vector2(.5f, 1f);
+            _autoTootText.rectTransform.sizeDelta = new Vector2(200, 14);
+            _autoTootText.fontSize = Plugin.Instance.TextSize.Value;
+            _autoTootText.fontStyle = FontStyles.Italic | FontStyles.UpperCase;
+            _autoTootText.gameObject.SetActive(false);
         }
 
         public void Update()
@@ -83,7 +96,7 @@ namespace TootTallyAutoToot
             else if (_shouldBreath && ((_gameController.breathcounter <= .65f && _isNoteActive) || (!_isNoteActive && _gameController.breathcounter <= 0f)))
                 _shouldBreath = false;
 
-                isTooting = ShouldToot();
+            isTooting = ShouldToot();
             if (!isTooting)
                 _releasedBetweenNotes = true;
             pointerPosition.y = GetPositionY();
@@ -108,7 +121,7 @@ namespace TootTallyAutoToot
                 if (_noteIndex + 1 < _gameController.leveldata.Count)
                 {
                     _lastNoteStartTime = _currentNoteStartTime;
-                    _lastNoteEndTime = _currentNoteEndTime + _timingAdjustValue;
+                    _lastNoteEndTime = _currentNoteEndTime + _lateTimingAdjustValue;
                     _lastNoteStartY = _currentNoteStartY;
                     _lastNoteEndY = _currentNoteEndY;
 
@@ -140,10 +153,11 @@ namespace TootTallyAutoToot
             _lastNoteEndTime = _trackTime - .01f;
             _lastNoteEndY = _pointerRect.anchoredPosition.y;
             Plugin.LogInfo($"AutoToot {(isEnabled ? "Enabled" : "Disabled")}.");
+            _autoTootText.gameObject.SetActive(isEnabled);
         }
 
         //if you're not tooting, should you start tooting? else should you stop
-        private bool ShouldToot() => ((_trackTime >= Mathf.Max(_currentNoteStartTime - (Plugin.Instance.SyncTootWithSong.Value ? _gameController.latency_offset : _timingAdjustValue), _lastNoteEndTime) && _releasedBetweenNotes)
+        private bool ShouldToot() => ((_trackTime >= Mathf.Max(_currentNoteStartTime - (Plugin.Instance.SyncTootWithSong.Value ? _gameController.latency_offset : _earlyTimingAdjustValue), _lastNoteEndTime) && _releasedBetweenNotes)
                                      || _trackTime <= _lastNoteEndTime
                                      || _isSlider)
                                      && !_shouldBreath
@@ -153,12 +167,15 @@ namespace TootTallyAutoToot
         private float GetPositionY()
         {
             float by;
-            if (_trackTime >= _currentNoteStartTime - _timingAdjustValue && _trackTime <= _currentNoteEndTime + _timingAdjustValue)
+            if (_trackTime >= _currentNoteStartTime - _earlyTimingAdjustValue && _trackTime <= _currentNoteEndTime + _lateTimingAdjustValue)
             {
-                by = Mathf.Clamp(1f - ((_currentNoteEndTime - (_trackTime + (0.005555f * TootTallyGlobalVariables.gameSpeedMultiplier))) / (_currentNoteEndTime - (_currentNoteStartTime - _timingAdjustValue))) , 0, 1);
+                if (_currentNoteStartY != _currentNoteEndY)
+                    by = Mathf.Clamp(1f - ((_currentNoteEndTime - _trackTime - (.005555f * TootTallyGlobalVariables.gameSpeedMultiplier)) / (_currentNoteEndTime - _currentNoteStartTime)), 0, 1);
+                else
+                    by = Mathf.Clamp(1f - ((_currentNoteEndTime - _trackTime) / (_currentNoteEndTime - (_currentNoteStartTime - _earlyTimingAdjustValue))), 0, 1);
                 return _currentNoteStartY + _gameController.easeInOutVal(Mathf.Abs(by), 0f, _currentNoteEndY - _currentNoteStartY, 1f);
             }
-            var adjustedNoteStart = _currentNoteStartTime - _timingAdjustValue;
+            var adjustedNoteStart = _currentNoteStartTime - _earlyTimingAdjustValue;
             by = Mathf.Clamp(1f - ((adjustedNoteStart - _trackTime) / (adjustedNoteStart - _lastNoteEndTime)), 0, 1);
             return Mathf.Lerp(_lastNoteEndY, _currentNoteStartY, _currentEasing(by));
         }
