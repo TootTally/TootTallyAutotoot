@@ -77,7 +77,7 @@ namespace TootTallyAutoToot
 
         public void Update()
         {
-            if (_gameController.freeplay) return;
+            if (_gameController == null || !_gameController.enabled || _gameController.freeplay) return;
 
             if (Input.GetKeyDown(Plugin.Instance.ToggleKey.Value))
                 ToggleEnable();

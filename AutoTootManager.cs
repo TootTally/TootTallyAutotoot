@@ -64,7 +64,7 @@ namespace TootTallyAutoToot
         [HarmonyPostfix]
         public static void OnGameControllerUpdateSetPointerPosition(GameController __instance)
         {
-            if (_controller.isEnabled)
+            if (_controller != null && _controller.isEnabled && __instance.puppet_humanc != null)
             {
                 __instance.puppet_humanc.doPuppetControl(-_controller.pointerPosition.y / 225);
                 _bgPuppetController?.DoPuppetControl(-_controller.pointerPosition.y / 225, __instance.vibratoamt);
